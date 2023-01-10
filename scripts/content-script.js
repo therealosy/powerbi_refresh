@@ -1,8 +1,10 @@
+const DEFAULT_TIME = 15; //in secs
+
 const PAUSE_DURATION = 5000; //in ms
-const DEFAULT_TIME = 15000; //in ms
-let INTERVAL_DURATION = 0;
 const POLLING_RATE = 50; //in ms
+
 let RELOAD_INTERVAL = 120000; //in ms
+let INTERVAL_DURATION = 0;
 let TIMER_SET = false;
 
 let i = 0;
@@ -19,22 +21,25 @@ const getBtns = () => {
   iframeDoc = window.document.querySelector(
     "iframe.viewer.pbi-frame"
   )?.contentDocument;
-  if (iframeDoc != undefined) {
-    btnQueryVal =
-      "div.section.dynamic.thumbnail-container.ui-draggable.ui-draggable-handle.droppableElement.ui-droppable.pbi-focus-outline";
-    let btnList = iframeDoc.querySelectorAll(btnQueryVal);
-    if (btnList.length > 0) {
-      btnList.forEach((elem, index) => {
-        if (!elem.classList.value.includes("hidden")) {
-          validBtn.push(elem);
-        }
-        if (elem.classList.value.includes("selected")) {
-          i = index + 1;
-        }
-      });
-      console.log("Success");
-      console.log(`Got ${validBtn.length} Buttons`);
-    }
+
+  if (iframeDoc == undefined) return [];
+
+  let btnQueryVal =
+    "div.section.dynamic.thumbnail-container.ui-draggable.ui-draggable-handle.droppableElement.ui-droppable.pbi-focus-outline";
+
+  let btnList = iframeDoc.querySelectorAll(btnQueryVal);
+
+  if (btnList.length > 0) {
+    btnList.forEach((elem, index) => {
+      if (!elem.classList.value.includes("hidden")) {
+        validBtn.push(elem);
+      }
+      if (elem.classList.value.includes("selected")) {
+        i = index + 1;
+      }
+    });
+    console.log("Success");
+    console.log(`Got ${validBtn.length} Buttons`);
   }
   return validBtn;
 };
@@ -105,7 +110,7 @@ window.onload = () => {
     .then(({ interval }) => {
       if (interval == undefined) {
         chrome.storage.local.set({ interval: DEFAULT_TIME }).then(() => {
-          console.log(`Default value set to ${DEFAULT_TIME / 1000}s`);
+          console.log(`Default value set to ${DEFAULT_TIME}s`);
         });
       }
       INTERVAL_DURATION = interval * 1000;
