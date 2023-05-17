@@ -4,18 +4,27 @@
   "description": "Refresh and Cycle through PowerBI Reports",
   "manifest_version": 3,
   "author": "Osy",
-  "action":{
-      "default_popup": "./popup/popup.html",
-      "default_title": "PowerBI Refresh"
+  "action": {
+    "default_popup": "./popup/popup.html",
+    "default_title": "PowerBI Refresh"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://iswlos-powerbi.interswitchng.com/PowerBIReports/powerbi/BackBone/Group%20Core%20Operations/*"],
+      "matches": [
+        "https://*/*"
+      ],
       "run_at": "document_idle",
-      "js": ["./scripts/content-script.js"]
+      "js": [
+        "./scripts/content-script.js"
+      ]
     }
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "activeTab"
   ]
 }

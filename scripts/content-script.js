@@ -1,41 +1,33 @@
-const DEFAULT_TIME = 15; //in secs
-
-const PAUSE_DURATION = 5000; //in ms
-const POLLING_RATE = 50; //in ms
-
-let RELOAD_INTERVAL = 120000; //in ms
 let INTERVAL_DURATION = 0;
-let TIMER_SET = false;
+let POWERBI_BASE_URL = "";
+let SHOULD_CYCLE_BROWSER_TABS = false;
+let IS_POWERBI_URL = true;
 
 let i = 0;
 
 let Btns = [];
+const iframeQueryVal = "iframe.viewer.pbi-frame";
+const btnQueryVal =
+  "div.section.dynamic.thumbnail-container.ui-draggable.ui-draggable-handle.droppableElement.ui-droppable.pbi-focus-outline";
+
 let changeInterval = undefined;
-let moveTimeout = undefined;
+let switchTimeout = undefined;
 let refreshBtn = undefined;
 let iframeDoc = undefined;
 
 const getBtns = () => {
   let validBtn = [];
   console.log("Trying to get Buttons");
-  iframeDoc = window.document.querySelector(
-    "iframe.viewer.pbi-frame"
-  )?.contentDocument;
+  iframeDoc = window.document.querySelector(iframeQueryVal)?.contentDocument;
 
   if (iframeDoc == undefined) return [];
-
-  let btnQueryVal =
-    "div.section.dynamic.thumbnail-container.ui-draggable.ui-draggable-handle.droppableElement.ui-droppable.pbi-focus-outline";
 
   let btnList = iframeDoc.querySelectorAll(btnQueryVal);
 
   if (btnList.length > 0) {
-    btnList.forEach((elem, index) => {
+    btnList.forEach((elem) => {
       if (!elem.classList.value.includes("hidden")) {
         validBtn.push(elem);
-      }
-      if (elem.classList.value.includes("selected")) {
-        i = index + 1;
       }
     });
     console.log("Success");
@@ -48,19 +40,17 @@ const changeSlide = () => {
   if (Btns.length < 1) {
     Btns = getBtns();
     return;
-  } else if (!TIMER_SET) {
-    RELOAD_INTERVAL += Btns.length * INTERVAL_DURATION;
-    setTimeout(reloadPage, RELOAD_INTERVAL);
-    console.log(`Reload interval set to ${RELOAD_INTERVAL / 1000}s`);
-    TIMER_SET = true;
+  } else if (i >= Btns.length) {
+    if (SHOULD_CYCLE_BROWSER_TABS) switchTabs();
+    else reloadPage();
+    return;
   }
-
-  i %= Btns.length;
 
   if (Btns[i] == undefined) {
     stop();
     console.log("Unable to Fetch Button Data");
-    reloadPage();
+
+    switchTabs();
     return;
   }
   Btns[i].click();
@@ -71,49 +61,54 @@ const changeSlide = () => {
 const start = () => {
   console.log("Started");
   console.log(`Interval set to ${INTERVAL_DURATION / 1000}s`);
-  if (INTERVAL_DURATION > 0) {
+  if (INTERVAL_DURATION <= 0) {
+    console.log("quit");
+    switchTabs();
+  } else if (IS_POWERBI_URL) {
     changeInterval = setInterval(() => {
       changeSlide();
     }, INTERVAL_DURATION);
   } else {
-    console.log("quit");
+    switchTimeout = setTimeout(() => {
+      switchTabs();
+    }, INTERVAL_DURATION);
   }
 };
 
 const stop = () => {
   console.log("Stopped");
-  clearInterval(changeInterval);
+  if (IS_POWERBI_URL) clearInterval(changeInterval);
+  else clearTimeout(switchTimeout);
 };
 
 const reloadPage = () => {
   window.location.reload();
 };
 
-const pauseSlides = () => {
-  setTimeout(() => {
-    if (moveTimeout != undefined) {
-      clearTimeout(moveTimeout);
-      stop();
-    }
-    moveTimeout = setTimeout(start, PAUSE_DURATION);
-  }, POLLING_RATE);
-};
+const switchTabs = () => {
+  stop();
 
-window.onmousemove = (event) => {
-  pauseSlides();
+  setTimeout(() => {
+    chrome?.runtime
+      ?.sendMessage("switch-tabs")
+      .then((response) => {
+        console.log(response);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }, 1000);
 };
 
 window.onload = () => {
-  console.log("Extension ON");
+  console.log(window.location.href);
   chrome.storage.local
-    .get(["interval"])
-    .then(({ interval }) => {
-      if (interval == undefined) {
-        chrome.storage.local.set({ interval: DEFAULT_TIME }).then(() => {
-          console.log(`Default value set to ${DEFAULT_TIME}s`);
-        });
-      }
+    .get(["interval", "cycleBrowserTabs", "powerBiBaseURL"])
+    .then(({ interval, cycleBrowserTabs, powerBiBaseURL }) => {
       INTERVAL_DURATION = interval * 1000;
+      POWERBI_BASE_URL = powerBiBaseURL;
+      SHOULD_CYCLE_BROWSER_TABS = cycleBrowserTabs;
+      IS_POWERBI_URL = window.location.href.startsWith(POWERBI_BASE_URL);
       start();
     })
     .catch((err) => {
