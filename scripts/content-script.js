@@ -1,5 +1,4 @@
 let INTERVAL_DURATION = 0;
-let POWERBI_BASE_URL = "";
 let SHOULD_CYCLE_BROWSER_TABS = false;
 let IS_POWERBI_URL = true;
 
@@ -41,8 +40,7 @@ const changeSlide = () => {
     Btns = getBtns();
     return;
   } else if (i >= Btns.length) {
-    if (SHOULD_CYCLE_BROWSER_TABS) switchTabs();
-    else reloadPage();
+    switchTabs();
     return;
   }
 
@@ -88,6 +86,11 @@ const reloadPage = () => {
 const switchTabs = () => {
   stop();
 
+  if (!SHOULD_CYCLE_BROWSER_TABS) {
+    reloadPage();
+    return;
+  }
+
   setTimeout(() => {
     chrome?.runtime
       ?.sendMessage("switch-tabs")
@@ -103,14 +106,29 @@ const switchTabs = () => {
 window.onload = () => {
   console.log(window.location.href);
   chrome.storage.local
-    .get(["interval", "cycleBrowserTabs", "powerBiBaseURL"])
-    .then(({ interval, cycleBrowserTabs, powerBiBaseURL }) => {
-      INTERVAL_DURATION = interval * 1000;
-      POWERBI_BASE_URL = powerBiBaseURL;
-      SHOULD_CYCLE_BROWSER_TABS = cycleBrowserTabs;
-      IS_POWERBI_URL = window.location.href.startsWith(POWERBI_BASE_URL);
-      start();
-    })
+    .get([
+      "interval",
+      "shouldCycleBrowserTabs",
+      "powerBiBaseURL",
+      "isExtensionDisabled",
+    ])
+    .then(
+      ({
+        interval,
+        shouldCycleBrowserTabs,
+        powerBiBaseURL,
+        isExtensionDisabled,
+      }) => {
+        console.log("ext_dis", isExtensionDisabled);
+        if (isExtensionDisabled) return;
+        INTERVAL_DURATION = interval * 1000;
+        SHOULD_CYCLE_BROWSER_TABS = shouldCycleBrowserTabs;
+        IS_POWERBI_URL = window.location.href.startsWith(powerBiBaseURL);
+        start();
+
+        console.log("IS_POWERBI_URL", IS_POWERBI_URL);
+      }
+    )
     .catch((err) => {
       console.log("err");
     });

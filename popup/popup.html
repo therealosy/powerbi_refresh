@@ -4,21 +4,36 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
     <script defer src="./popup.js"></script>
     <title>PowerBI Refresh</title>
   </head>
   <body>
-    <p>This Extension refreshes PowerBI and cycles through available tabs</p>
-    <label for="interval">Tab Interval (secs)</label>
-    <input type="number" name="interval" id="intervalInput" />
-    <label for="interval">PowerBI Url</label>
-    <input type="url" name="powerBiUrl" id="powerBiUrlInput" />
-    <label for="cycleBrowserTabs">Cycle Browser tabls</label>
-    <input
-      id="cycleBrowserTabsToggle"
-      name="cycleBrowserTabs"
-      type="checkbox"
-    />
-    <button id="saveButton">Save</button>
+    <h4>This Extension refreshes PowerBI and cycles through available tabs</h4>
+
+    <button id="extensionToggle">Turn On</button>
+
+    <div class="extension-settings">
+      <div>
+        <div><label for="interval">Tab Interval (secs)</label></div>
+        <div><input type="number" name="interval" id="intervalInput" /></div>
+      </div>
+
+      <div>
+        <div><label for="interval">PowerBI Url</label></div>
+        <div><input type="url" name="powerBiUrl" id="powerBiUrlInput" /></div>
+      </div>
+
+      <div>
+        <input
+          id="cycleBrowserTabsToggle"
+          name="cycleBrowserTabs"
+          type="checkbox"
+        />
+        <label for="cycleBrowserTabs">Cycle Browser tabs</label>
+      </div>
+
+      <div><button id="saveButton">Save</button></div>
+    </div>
   </body>
 </html>
