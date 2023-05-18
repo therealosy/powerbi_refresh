@@ -86,10 +86,10 @@ const reloadPage = () => {
 const switchTabs = () => {
   stop();
 
-  if (!SHOULD_CYCLE_BROWSER_TABS) {
-    reloadPage();
-    return;
-  }
+  // if (!SHOULD_CYCLE_BROWSER_TABS) {
+  //   reloadPage();
+  //   return;
+  // }
 
   setTimeout(() => {
     chrome?.runtime

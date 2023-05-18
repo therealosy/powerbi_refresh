@@ -2,10 +2,10 @@ let tabList = [];
 let activeTabIndex = 0;
 
 const DEFAULT_INTERVAL = 15;
-const DEFAULT_TOGGLE = false;
 const DEFAULT_POWERBI_BASE_URL =
   "https://iswlos-powerbi.interswitchng.com/PowerBIReports/powerbi/BackBone/Group%20Core%20Operations/";
 let IS_EXTENSION_DISABLED = true;
+let SHOULD_CYCLE_BROWSER_TABS = false;
 
 async function updateTabList() {
   const tabs = await chrome.tabs.query({
@@ -33,7 +33,7 @@ async function initializeStorage() {
   let [interval, shouldCycleBrowserTabs, powerBiBaseURL, isExtensionDisabled] =
     [
       DEFAULT_INTERVAL,
-      DEFAULT_TOGGLE,
+      SHOULD_CYCLE_BROWSER_TABS,
       DEFAULT_POWERBI_BASE_URL,
       IS_EXTENSION_DISABLED,
     ];
@@ -125,21 +125,33 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  console.log("is dis", IS_EXTENSION_DISABLED);
   if (IS_EXTENSION_DISABLED) return;
 
   if (request == "switch-tabs") {
+    if (!SHOULD_CYCLE_BROWSER_TABS) {
+      await chrome.tabs.reload((tabId = tabList[activeTabIndex])).then(() => {
+        console.log("Reloading Tab");
+      });
+      return;
+    }
     activeTabIndex++;
     activeTabIndex %= tabList.length;
 
     switchTabs();
+
     sendResponse("Switching tabs");
   }
 });
 
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  let { isExtensionDisabled } = changes;
+  let { isExtensionDisabled, shouldCycleBrowserTabs } = changes;
 
   if (isExtensionDisabled !== undefined) {
-    IS_EXTENSION_DISABLED = isExtensionDisabled;
+    IS_EXTENSION_DISABLED = isExtensionDisabled?.newValue;
+  }
+
+  if (shouldCycleBrowserTabs != undefined) {
+    SHOULD_CYCLE_BROWSER_TABS = shouldCycleBrowserTabs?.newValue;
   }
 });
