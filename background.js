@@ -12,6 +12,7 @@ async function updateTabList() {
     lastFocusedWindow: true,
   });
 
+  tabList = [];
   tabs.forEach(({ id }) => {
     tabList.push(id);
   });
@@ -26,6 +27,7 @@ async function switchTabs() {
     );
   } catch (error) {
     console.log(error);
+    updateTabList();
   }
 }
 
@@ -54,10 +56,14 @@ async function initializeStorage() {
     });
 }
 
+async function reloadActiveTab() {
+  await chrome.tabs.reload((tabId = tabList[activeTabIndex])).then(() => {
+    console.log("Reloading Tab");
+  });
+}
+
 chrome.tabs.onCreated.addListener(async () => {
   if (IS_EXTENSION_DISABLED) return;
-
-  console.log("new tab created");
   try {
     await updateTabList();
   } catch (error) {
@@ -67,8 +73,6 @@ chrome.tabs.onCreated.addListener(async () => {
 
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   if (IS_EXTENSION_DISABLED) return;
-
-  console.log("tab removed", tabId);
   try {
     await updateTabList();
   } catch (error) {
@@ -78,8 +82,6 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
 
 chrome.tabs.onDetached.addListener(async (tabId, detachInfo) => {
   if (IS_EXTENSION_DISABLED) return;
-
-  console.log("tab detached", tabId);
   try {
     await updateTabList();
   } catch (error) {
@@ -89,8 +91,6 @@ chrome.tabs.onDetached.addListener(async (tabId, detachInfo) => {
 
 chrome.tabs.onAttached.addListener(async (tabId, attachInfo) => {
   if (IS_EXTENSION_DISABLED) return;
-
-  console.log("tab attached", tabId);
   try {
     await updateTabList();
     switchTabs();
@@ -100,58 +100,59 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) => {
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
+  activeTabIndex = tabList.indexOf(tabId);
+
   if (IS_EXTENSION_DISABLED) return;
 
-  console.log("activeId", tabId);
   try {
-    await chrome.tabs.reload((tabId = tabId)).then(() => {
-      console.log("Reloading Tab");
-    });
-    activeTabIndex = tabList.indexOf(tabId);
+    await reloadActiveTab();
   } catch (error) {
     console.log(error);
   }
 });
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log("installed because", details.reason);
+  console.log("Installed as", details.reason);
   try {
     await initializeStorage();
     await updateTabList();
-    // switchTabs();
   } catch (error) {
     console.log(error);
   }
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  console.log("is dis", IS_EXTENSION_DISABLED);
   if (IS_EXTENSION_DISABLED) return;
 
-  if (request == "switch-tabs") {
-    if (!SHOULD_CYCLE_BROWSER_TABS) {
-      await chrome.tabs.reload((tabId = tabList[activeTabIndex])).then(() => {
-        console.log("Reloading Tab");
-      });
+  const senderId = sender?.tab?.id;
+
+  if (request === "switch-tabs" && senderId === tabList[activeTabIndex]) {
+    sendResponse("Switching tabs");
+
+    if (SHOULD_CYCLE_BROWSER_TABS) {
+      activeTabIndex++;
+      activeTabIndex %= tabList.length;
+
+      switchTabs();
       return;
     }
-    activeTabIndex++;
-    activeTabIndex %= tabList.length;
-
-    switchTabs();
-
-    sendResponse("Switching tabs");
+    await reloadActiveTab();
   }
 });
 
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
   let { isExtensionDisabled, shouldCycleBrowserTabs } = changes;
 
+  if (shouldCycleBrowserTabs !== undefined)
+    SHOULD_CYCLE_BROWSER_TABS = shouldCycleBrowserTabs?.newValue;
+
   if (isExtensionDisabled !== undefined) {
     IS_EXTENSION_DISABLED = isExtensionDisabled?.newValue;
+
+    if (IS_EXTENSION_DISABLED) return;
+
+    await updateTabList();
   }
 
-  if (shouldCycleBrowserTabs != undefined) {
-    SHOULD_CYCLE_BROWSER_TABS = shouldCycleBrowserTabs?.newValue;
-  }
+  await reloadActiveTab();
 });

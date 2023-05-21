@@ -1,98 +1,90 @@
 let INTERVAL_DURATION = 0;
-let SHOULD_CYCLE_BROWSER_TABS = false;
 let IS_POWERBI_URL = true;
 
-let i = 0;
-
-let Btns = [];
-const iframeQueryVal = "iframe.viewer.pbi-frame";
-const btnQueryVal =
-  "div.section.dynamic.thumbnail-container.ui-draggable.ui-draggable-handle.droppableElement.ui-droppable.pbi-focus-outline";
+let tabIndex = 0;
+let powerBiTabs = [];
 
 let changeInterval = undefined;
 let switchTimeout = undefined;
-let refreshBtn = undefined;
-let iframeDoc = undefined;
 
-const getBtns = () => {
-  let validBtn = [];
+function getPowerBiTabs() {
+  const powerBiIframeQuery = "iframe.viewer.pbi-frame";
+  const tabQuery =
+    "div.section.dynamic.thumbnail-container.ui-draggable.ui-draggable-handle.droppableElement.ui-droppable.pbi-focus-outline";
+
+  let powerBiIframe = undefined;
+  let validTabs = [];
+
   console.log("Trying to get Buttons");
-  iframeDoc = window.document.querySelector(iframeQueryVal)?.contentDocument;
 
-  if (iframeDoc == undefined) return [];
+  powerBiIframe =
+    window.document.querySelector(powerBiIframeQuery)?.contentDocument;
 
-  let btnList = iframeDoc.querySelectorAll(btnQueryVal);
+  if (powerBiIframe === undefined) return [];
 
-  if (btnList.length > 0) {
-    btnList.forEach((elem) => {
-      if (!elem.classList.value.includes("hidden")) {
-        validBtn.push(elem);
-      }
+  let tabsList = powerBiIframe.querySelectorAll(tabQuery);
+
+  if (tabsList.length > 0) {
+    tabsList.forEach((tab) => {
+      if (tab.classList.value.includes("hidden")) return;
+      validTabs.push(tab);
     });
     console.log("Success");
-    console.log(`Got ${validBtn.length} Buttons`);
+    console.log(`Got ${validTabs.length} Buttons`);
   }
-  return validBtn;
-};
+  return validTabs;
+}
 
-const changeSlide = () => {
-  if (Btns.length < 1) {
-    Btns = getBtns();
+function changeSlide() {
+  if (powerBiTabs.length < 1) {
+    powerBiTabs = getPowerBiTabs();
     return;
-  } else if (i >= Btns.length) {
+  } else if (tabIndex >= powerBiTabs.length) {
     switchTabs();
     return;
   }
 
-  if (Btns[i] == undefined) {
+  if (powerBiTabs[tabIndex] == undefined) {
     stop();
     console.log("Unable to Fetch Button Data");
 
     switchTabs();
     return;
   }
-  Btns[i].click();
-  i++;
+  powerBiTabs[tabIndex].click();
+  tabIndex++;
   console.log("Changing...");
-};
+}
 
-const start = () => {
+function start() {
   console.log("Started");
   console.log(`Interval set to ${INTERVAL_DURATION / 1000}s`);
   if (INTERVAL_DURATION <= 0) {
-    console.log("quit");
     switchTabs();
-  } else if (IS_POWERBI_URL) {
+    return;
+  }
+  if (IS_POWERBI_URL) {
     changeInterval = setInterval(() => {
       changeSlide();
     }, INTERVAL_DURATION);
-  } else {
-    switchTimeout = setTimeout(() => {
-      switchTabs();
-    }, INTERVAL_DURATION);
+    return;
   }
-};
+  switchTimeout = setTimeout(() => {
+    switchTabs();
+  }, INTERVAL_DURATION);
+}
 
-const stop = () => {
+function stop() {
   console.log("Stopped");
   if (IS_POWERBI_URL) clearInterval(changeInterval);
   else clearTimeout(switchTimeout);
-};
+}
 
-const reloadPage = () => {
-  window.location.reload();
-};
-
-const switchTabs = () => {
+function switchTabs() {
   stop();
 
-  // if (!SHOULD_CYCLE_BROWSER_TABS) {
-  //   reloadPage();
-  //   return;
-  // }
-
   setTimeout(() => {
-    chrome?.runtime
+    chrome.runtime
       ?.sendMessage("switch-tabs")
       .then((response) => {
         console.log(response);
@@ -100,40 +92,20 @@ const switchTabs = () => {
       .catch((error) => {
         console.log(error);
       });
-  }, 1000);
-};
+  }, 500);
+}
 
 window.onload = () => {
-  console.log(window.location.href);
   chrome.storage.local
-    .get([
-      "interval",
-      "shouldCycleBrowserTabs",
-      "powerBiBaseURL",
-      "isExtensionDisabled",
-    ])
-    .then(
-      ({
-        interval,
-        shouldCycleBrowserTabs,
-        powerBiBaseURL,
-        isExtensionDisabled,
-      }) => {
-        console.log("ext_dis", isExtensionDisabled);
-        if (isExtensionDisabled) return;
-        INTERVAL_DURATION = interval * 1000;
-        SHOULD_CYCLE_BROWSER_TABS = shouldCycleBrowserTabs;
-        IS_POWERBI_URL = window.location.href.startsWith(powerBiBaseURL);
-        start();
+    .get(["interval", "powerBiBaseURL", "isExtensionDisabled"])
+    .then(({ interval, powerBiBaseURL, isExtensionDisabled }) => {
+      if (isExtensionDisabled) return;
 
-        console.log("IS_POWERBI_URL", IS_POWERBI_URL);
-      }
-    )
-    .catch((err) => {
-      console.log("err");
+      INTERVAL_DURATION = interval * 1000;
+      IS_POWERBI_URL = window.location.href.startsWith(powerBiBaseURL);
+      start();
+    })
+    .catch((error) => {
+      console.log("Error Loading Chrome Storage", error);
     });
 };
-
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  reloadPage();
-});
