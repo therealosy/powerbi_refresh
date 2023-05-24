@@ -47,13 +47,7 @@ saveButton.onclick = async (event) => {
       shouldCycleBrowserTabs: SHOULD_CYCLE_BROWSER_TABS,
       powerBiBaseURL: POWERBI_BASE_URL,
     })
-    .then(() => {
-      console.log("After saving:", {
-        INTERVAL,
-        SHOULD_CYCLE_BROWSER_TABS,
-        POWERBI_BASE_URL,
-      });
-    });
+    .then(() => {});
   window.close();
 };
 
@@ -75,13 +69,11 @@ extensionToggle.onclick = async (event) => {
   await chrome.storage.local
     .set({ isExtensionDisabled: IS_EXTENSION_DISABLED })
     .then(() => {
-      console.log("Is extension disabled", IS_EXTENSION_DISABLED);
       updatePopupStyles();
     });
 };
 
 function updatePopupStyles() {
-  console.log("style", IS_EXTENSION_DISABLED);
   extensionToggle.classList = IS_EXTENSION_DISABLED ? "disabled" : "enabled";
   extensionToggle.textContent = IS_EXTENSION_DISABLED ? "Turn On" : "Turn Off";
 }

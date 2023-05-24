@@ -16,7 +16,6 @@ async function updateTabList() {
   tabs.forEach(({ id }) => {
     tabList.push(id);
   });
-  console.log(tabList);
 }
 
 async function switchTabs() {
@@ -26,7 +25,6 @@ async function switchTabs() {
       (updateProperties = { active: true })
     );
   } catch (error) {
-    console.log(error);
     updateTabList();
   }
 }
@@ -46,20 +44,11 @@ async function initializeStorage() {
       powerBiBaseURL,
       isExtensionDisabled,
     })
-    .then(() => {
-      console.log("After setting:", {
-        interval,
-        shouldCycleBrowserTabs,
-        powerBiBaseURL,
-        isExtensionDisabled,
-      });
-    });
+    .then(() => {});
 }
 
 async function reloadActiveTab() {
-  await chrome.tabs.reload((tabId = tabList[activeTabIndex])).then(() => {
-    console.log("Reloading Tab");
-  });
+  await chrome.tabs.reload((tabId = tabList[activeTabIndex])).then(() => {});
 }
 
 chrome.tabs.onCreated.addListener(async () => {
@@ -67,7 +56,7 @@ chrome.tabs.onCreated.addListener(async () => {
   try {
     await updateTabList();
   } catch (error) {
-    console.log(error);
+    await chrome.runtime?.reload();
   }
 });
 
@@ -76,7 +65,7 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   try {
     await updateTabList();
   } catch (error) {
-    console.log(error);
+    await chrome.runtime?.reload();
   }
 });
 
@@ -85,7 +74,7 @@ chrome.tabs.onDetached.addListener(async (tabId, detachInfo) => {
   try {
     await updateTabList();
   } catch (error) {
-    console.log(error);
+    await chrome.runtime?.reload();
   }
 });
 
@@ -93,9 +82,8 @@ chrome.tabs.onAttached.addListener(async (tabId, attachInfo) => {
   if (IS_EXTENSION_DISABLED) return;
   try {
     await updateTabList();
-    switchTabs();
   } catch (error) {
-    console.log(error);
+    await chrome.runtime?.reload();
   }
 });
 
@@ -107,17 +95,16 @@ chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
   try {
     await reloadActiveTab();
   } catch (error) {
-    console.log(error);
+    await chrome.runtime?.reload();
   }
 });
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log("Installed as", details.reason);
   try {
     await initializeStorage();
     await updateTabList();
   } catch (error) {
-    console.log(error);
+    await chrome.runtime?.reload();
   }
 });
 
