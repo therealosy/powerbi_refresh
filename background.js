@@ -1,101 +1,105 @@
-let tabList = [];
-let activeTabIndex = 0;
-
-const DEFAULT_INTERVAL = 15;
-const DEFAULT_POWERBI_BASE_URL =
-  "https://iswlos-powerbi.interswitchng.com/PowerBIReports/powerbi/BackBone/Group%20Core%20Operations/";
-let IS_EXTENSION_DISABLED = true;
-let SHOULD_CYCLE_BROWSER_TABS = false;
-
 async function updateTabList() {
   const tabs = await chrome.tabs.query({
     lastFocusedWindow: true,
   });
 
-  tabList = [];
+  let tabList = [];
   tabs.forEach(({ id }) => {
     tabList.push(id);
   });
+
+  await chrome.storage.local.set({ tabList });
 }
 
-async function switchTabs() {
+async function switchTabs(tabId) {
   try {
     await chrome.tabs.update(
-      (tabId = tabList[activeTabIndex]),
+      (tabId = tabId),
       (updateProperties = { active: true })
     );
   } catch (error) {
     updateTabList();
+    console.log(error);
   }
 }
 
 async function initializeStorage() {
-  let [interval, shouldCycleBrowserTabs, powerBiBaseURL, isExtensionDisabled] =
-    [
-      DEFAULT_INTERVAL,
-      SHOULD_CYCLE_BROWSER_TABS,
-      DEFAULT_POWERBI_BASE_URL,
-      IS_EXTENSION_DISABLED,
-    ];
-  await chrome.storage.local
-    .set({
-      interval,
-      shouldCycleBrowserTabs,
-      powerBiBaseURL,
-      isExtensionDisabled,
-    })
-    .then(() => {});
+  const interval = 15;
+  const powerBiBaseURL =
+    "https://iswlos-powerbi.interswitchng.com/PowerBIReports/powerbi/BackBone/Group%20Core%20Operations/";
+  const isExtensionDisabled = true;
+  const shouldCycleBrowserTabs = false;
+
+  await chrome.storage.local.set({
+    interval,
+    shouldCycleBrowserTabs,
+    powerBiBaseURL,
+    isExtensionDisabled,
+  });
 }
 
 async function reloadActiveTab() {
-  await chrome.tabs.reload((tabId = tabList[activeTabIndex])).then(() => {});
+  const { activeTabIndex, tabList } = await chrome.storage.local.get([
+    "tabList",
+    "activeTabIndex",
+  ]);
+  await chrome.tabs.reload((tabId = tabList[activeTabIndex]));
 }
 
 chrome.tabs.onCreated.addListener(async () => {
-  if (IS_EXTENSION_DISABLED) return;
   try {
     await updateTabList();
   } catch (error) {
-    await chrome.runtime?.reload();
+    console.log(error);
+    // await chrome.runtime?.reload();
   }
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
-  if (IS_EXTENSION_DISABLED) return;
   try {
     await updateTabList();
   } catch (error) {
-    await chrome.runtime?.reload();
+    console.log(error);
+    // await chrome.runtime?.reload();
   }
 });
 
 chrome.tabs.onDetached.addListener(async (tabId, detachInfo) => {
-  if (IS_EXTENSION_DISABLED) return;
   try {
     await updateTabList();
   } catch (error) {
-    await chrome.runtime?.reload();
+    console.log(error);
+    // await chrome.runtime?.reload();
   }
 });
 
 chrome.tabs.onAttached.addListener(async (tabId, attachInfo) => {
-  if (IS_EXTENSION_DISABLED) return;
   try {
     await updateTabList();
   } catch (error) {
-    await chrome.runtime?.reload();
+    // await chrome.runtime?.reload();
+    console.log(error);
   }
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
-  activeTabIndex = tabList.indexOf(tabId);
+  await updateTabList();
+  const { tabList, isExtensionDisabled } = await chrome.storage.local.get([
+    "tabList",
+    "isExtensionDisabled",
+  ]);
 
-  if (IS_EXTENSION_DISABLED) return;
+  let activeTabIndex = tabList.indexOf(tabId);
+
+  await chrome.storage.local.set({ activeTabIndex });
+
+  if (isExtensionDisabled) return;
 
   try {
     await reloadActiveTab();
   } catch (error) {
-    await chrome.runtime?.reload();
+    console.log(error);
+    // await chrome.runtime?.reload();
   }
 });
 
@@ -104,23 +108,36 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await initializeStorage();
     await updateTabList();
   } catch (error) {
+    console.log(error);
     await chrome.runtime?.reload();
   }
 });
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  if (IS_EXTENSION_DISABLED) return;
+  let { activeTabIndex, tabList, shouldCycleBrowserTabs, isExtensionDisabled } =
+    await chrome.storage.local.get([
+      "tabList",
+      "activeTabIndex",
+      "shouldCycleBrowserTabs",
+      "isExtensionDisabled",
+    ]);
 
-  const senderId = sender?.tab?.id;
+  if (isExtensionDisabled) return;
 
-  if (request === "switch-tabs" && senderId === tabList[activeTabIndex]) {
-    sendResponse("Switching tabs");
+  const isSenderActive = sender?.tab.id === tabList[activeTabIndex];
 
-    if (SHOULD_CYCLE_BROWSER_TABS) {
+  if (request === "switch-tabs" && isSenderActive) {
+    sendResponse({ response: "Switching tabs" });
+
+    if (shouldCycleBrowserTabs) {
       activeTabIndex++;
       activeTabIndex %= tabList.length;
 
-      switchTabs();
+      const tabId = tabList[activeTabIndex];
+
+      await switchTabs(tabId);
+      await chrome.storage.local.set({ activeTabIndex });
+
       return;
     }
     await reloadActiveTab();
@@ -128,18 +145,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 });
 
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  let { isExtensionDisabled, shouldCycleBrowserTabs } = changes;
+  let { tabList, activeTabIndex } = changes;
 
-  if (shouldCycleBrowserTabs !== undefined)
-    SHOULD_CYCLE_BROWSER_TABS = shouldCycleBrowserTabs?.newValue;
+  if (tabList !== undefined || activeTabIndex !== undefined) return;
 
-  if (isExtensionDisabled !== undefined) {
-    IS_EXTENSION_DISABLED = isExtensionDisabled?.newValue;
-
-    if (IS_EXTENSION_DISABLED) return;
-
-    await updateTabList();
-  }
-
+  await updateTabList();
   await reloadActiveTab();
 });
