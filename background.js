@@ -26,7 +26,7 @@ async function switchTabs(tabId) {
 async function initializeStorage() {
   const interval = 15;
   const powerBiBaseURL =
-    "https://iswlos-powerbi.interswitchng.com/PowerBIReports/powerbi/BackBone/Group%20Core%20Operations/";
+    "Change ME!!";
   const isExtensionDisabled = true;
   const shouldCycleBrowserTabs = false;
 
